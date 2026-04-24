@@ -1,0 +1,295 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Electro-Puzzle: Niveles Progresivos</title>
+    <!-- Script Externo Solicitado -->
+    <script src="https://pl29235810.profitablecpmratenetwork.com/34/46/83/344683d6a08dfb0f61731495e8dcb990.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --accent: #38bdf8;
+            --success: #22c55e;
+            --grid-line: #1e293b;
+        }
+
+        body {
+            font-family: 'JetBrains+Mono', monospace;
+            background-color: var(--bg-color);
+            color: #f1f5f9;
+            touch-action: manipulation;
+        }
+
+        .puzzle-board {
+            display: grid;
+            gap: 4px;
+            background-color: var(--grid-line);
+            border: 4px solid var(--grid-line);
+            border-radius: 12px;
+            overflow: hidden;
+            width: 320px;
+            height: 320px;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);
+            margin: 0 auto;
+        }
+
+        @media (min-width: 640px) {
+            .puzzle-board {
+                width: 450px;
+                height: 450px;
+            }
+        }
+
+        .puzzle-piece {
+            background-color: #020617;
+            cursor: pointer;
+            transition: transform 0.2s, filter 0.2s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .puzzle-piece:hover {
+            filter: brightness(1.3);
+            z-index: 10;
+        }
+
+        .puzzle-piece.selected {
+            outline: 3px solid var(--accent);
+            outline-offset: -3px;
+            filter: brightness(1.5);
+            transform: scale(0.95);
+        }
+
+        .level-badge {
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            color: #0f172a;
+            padding: 2px 12px;
+            border-radius: 9999px;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+    <div class="max-w-4xl w-full flex flex-col items-center">
+        <header class="text-center mb-6">
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <h1 class="text-4xl font-bold text-sky-400">ELECTRO-PUZZLE</h1>
+                <span id="level-indicator" class="level-badge">NIVEL 1</span>
+            </div>
+            <p id="level-description" class="text-slate-400">Reconstruye el circuito básico</p>
+        </header>
+
+        <div class="flex flex-col md:flex-row gap-8 items-center justify-center w-full">
+            
+            <!-- Tablero de Juego -->
+            <div class="relative">
+                <div id="puzzle-board" class="puzzle-board">
+                    <!-- Piezas generadas por JS -->
+                </div>
+                <div id="success-overlay" class="absolute inset-0 bg-green-500/20 pointer-events-none opacity-0 transition-opacity duration-500 rounded-xl flex items-center justify-center">
+                    <div class="bg-slate-900 px-6 py-3 rounded-full border-2 border-green-500 text-green-500 font-bold text-xl shadow-2xl">
+                        ¡CIRCUITO VALIDADO!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Control -->
+            <div class="w-full max-w-xs space-y-4">
+                <div class="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                    <div class="flex justify-around mb-4">
+                        <div class="text-center">
+                            <div class="text-slate-500 text-[10px] uppercase tracking-widest">Movimientos</div>
+                            <div id="move-count" class="text-2xl font-bold text-sky-400">0</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-slate-500 text-[10px] uppercase tracking-widest">Dificultad</div>
+                            <div id="grid-info" class="text-2xl font-bold text-slate-300">3x3</div>
+                        </div>
+                    </div>
+                    
+                    <button id="shuffle-btn" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-all mb-3">
+                        Mezclar Nivel
+                    </button>
+                    
+                    <button id="hint-btn" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-2 rounded-xl transition-all text-sm">
+                        Ver Esquema (1s)
+                    </button>
+                </div>
+
+                <div class="text-xs text-slate-500 text-center italic">
+                    Intercambia las piezas para completar el diagrama técnico.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Victoria Final -->
+    <div id="win-modal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 p-8 rounded-2xl border-2 border-success max-w-sm w-full text-center">
+            <div class="text-6xl mb-4">⚡</div>
+            <h2 class="text-3xl font-bold text-white mb-2">¡Máximo Nivel!</h2>
+            <p class="text-slate-400 mb-6">Has demostrado ser un experto en esquemáticos electrónicos.</p>
+            <button onclick="location.reload()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-all">
+                Reiniciar desde el Nivel 1
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de niveles
+        const LEVELS = [
+            {
+                size: 3,
+                title: "NIVEL 1",
+                desc: "Circuito R-C Básico",
+                svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='450' height='450' viewBox='0 0 450 450'%3E%3Crect width='450' height='450' fill='%230f172a'/%3E%3Cpath d='M50 50 L400 50 L400 400 L50 400 Z' stroke='%2338bdf8' stroke-width='2' fill='none'/%3E%3Cpath d='M100 200 L180 200' stroke='%2338bdf8' stroke-width='4'/%3E%3Crect x='180' y='180' width='60' height='40' stroke='%2338bdf8' stroke-width='4' fill='none'/%3E%3Cpath d='M240 200 L300 200' stroke='%2338bdf8' stroke-width='4'/%3E%3Cpath d='M300 180 L300 220 M310 180 L310 220' stroke='%2322c55e' stroke-width='4'/%3E%3Cpath d='M310 200 L350 200' stroke='%2322c55e' stroke-width='4'/%3E%3Ccircle cx='100' cy='200' r='10' fill='%23fbbf24'/%3E%3Ccircle cx='350' cy='200' r='10' fill='%23fbbf24'/%3E%3C/svg%3E"
+            },
+            {
+                size: 4,
+                title: "NIVEL 2",
+                desc: "Etapa de Amplificación",
+                svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='450' height='450' viewBox='0 0 450 450'%3E%3Crect width='450' height='450' fill='%230f172a'/%3E%3Cpath d='M225 150 L225 225 L275 225' stroke='%2338bdf8' stroke-width='4' fill='none'/%3E%3Cpath d='M225 225 L175 225' stroke='%2338bdf8' stroke-width='4'/%3E%3Cpath d='M200 200 L200 250' stroke='%23f1f5f9' stroke-width='6'/%3E%3Ccircle cx='225' cy='225' r='40' stroke='%2338bdf8' stroke-width='2' fill='none'/%3E%3Cpath d='M100 225 L175 225' stroke='%2338bdf8' stroke-width='2'/%3E%3Crect x='300' y='205' width='50' height='40' stroke='%23fbbf24' stroke-width='3' fill='none'/%3E%3Cpath d='M225 100 L225 150 M225 300 L225 350' stroke='%2322c55e' stroke-width='2'/%3E%3C/svg%3E"
+            },
+            {
+                size: 5,
+                title: "NIVEL 3",
+                desc: "Sistema Integrado Complejo",
+                svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='450' height='450' viewBox='0 0 450 450'%3E%3Crect width='450' height='450' fill='%230f172a'/%3E%3Crect x='150' y='150' width='150' height='150' rx='10' stroke='%2338bdf8' stroke-width='4' fill='none'/%3E%3Cpath d='M150 180 L100 180 M150 210 L100 210 M150 240 L100 240 M150 270 L100 270' stroke='%2338bdf8' stroke-width='2'/%3E%3Cpath d='M300 180 L350 180 M300 210 L350 210 M300 240 L350 240 M300 270 L350 270' stroke='%2322c55e' stroke-width='2'/%3E%3Cpath d='M180 150 L180 100 M210 150 L210 100 M240 150 L240 100 M270 150 L270 100' stroke='%23fbbf24' stroke-width='2'/%3E%3Cpath d='M180 300 L180 350 M210 300 L210 350 M240 300 L240 350 M270 300 L270 350' stroke='%23818cf8' stroke-width='2'/%3E%3Ccircle cx='225' cy='225' r='20' fill='%231e293b' stroke='%2338bdf8'/%3E%3C/svg%3E"
+            }
+        ];
+
+        let currentLevel = 0;
+        let pieces = [];
+        let selectedPiece = null;
+        let moves = 0;
+        let isWin = false;
+        const board = document.getElementById('puzzle-board');
+
+        function loadLevel(index) {
+            const level = LEVELS[index];
+            currentLevel = index;
+            isWin = false;
+            moves = 0;
+            selectedPiece = null;
+
+            // Actualizar UI
+            document.getElementById('level-indicator').textContent = level.title;
+            document.getElementById('level-description').textContent = level.desc;
+            document.getElementById('grid-info').textContent = `${level.size}x${level.size}`;
+            document.getElementById('move-count').textContent = "0";
+            document.getElementById('success-overlay').style.opacity = "0";
+
+            // Configurar Grid CSS
+            board.style.gridTemplateColumns = `repeat(${level.size}, 1fr)`;
+            board.style.gridTemplateRows = `repeat(${level.size}, 1fr)`;
+
+            // Crear Piezas
+            pieces = [];
+            const total = level.size * level.size;
+            for (let i = 0; i < total; i++) {
+                pieces.push({ id: i, correctPos: i });
+            }
+
+            shuffle();
+        }
+
+        function renderBoard() {
+            board.innerHTML = '';
+            const level = LEVELS[currentLevel];
+            
+            pieces.forEach((piece) => {
+                const div = document.createElement('div');
+                div.className = 'puzzle-piece';
+                if (selectedPiece === piece) div.classList.add('selected');
+                
+                // Fondo
+                const row = Math.floor(piece.correctPos / level.size);
+                const col = piece.correctPos % level.size;
+                const x = (col / (level.size - 1)) * 100;
+                const y = (row / (level.size - 1)) * 100;
+                
+                div.style.backgroundImage = `url("${level.svg}")`;
+                div.style.backgroundSize = `${level.size * 100}% ${level.size * 100}%`;
+                div.style.backgroundPosition = `${x}% ${y}%`;
+                
+                div.onclick = () => handlePieceClick(piece);
+                board.appendChild(div);
+            });
+        }
+
+        function handlePieceClick(piece) {
+            if (isWin) return;
+
+            if (!selectedPiece) {
+                selectedPiece = piece;
+                renderBoard();
+            } else {
+                if (selectedPiece !== piece) {
+                    const idx1 = pieces.indexOf(selectedPiece);
+                    const idx2 = pieces.indexOf(piece);
+                    [pieces[idx1], pieces[idx2]] = [pieces[idx2], pieces[idx1]];
+                    moves++;
+                    document.getElementById('move-count').textContent = moves;
+                }
+                selectedPiece = null;
+                renderBoard();
+                checkWin();
+            }
+        }
+
+        function shuffle() {
+            // Mezclar hasta que no sea el orden correcto
+            do {
+                for (let i = pieces.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+                }
+            } while (pieces.every((p, i) => p.correctPos === i));
+            
+            renderBoard();
+        }
+
+        function checkWin() {
+            const win = pieces.every((piece, index) => piece.correctPos === index);
+            if (win && moves > 0) {
+                isWin = true;
+                document.getElementById('success-overlay').style.opacity = "1";
+                
+                setTimeout(() => {
+                    if (currentLevel < LEVELS.length - 1) {
+                        loadLevel(currentLevel + 1);
+                    } else {
+                        document.getElementById('win-modal').classList.remove('hidden');
+                        document.getElementById('win-modal').classList.add('flex');
+                    }
+                }, 1500);
+            }
+        }
+
+        document.getElementById('shuffle-btn').onclick = () => {
+            if(confirm('¿Reiniciar este nivel?')) loadLevel(currentLevel);
+        };
+        
+        document.getElementById('hint-btn').onclick = () => {
+            const originalBoard = [...pieces];
+            pieces.sort((a, b) => a.correctPos - b.correctPos);
+            renderBoard();
+            setTimeout(() => {
+                pieces = originalBoard;
+                renderBoard();
+            }, 1000);
+        };
+
+        // Iniciar primer nivel
+        loadLevel(0);
+    </script>
+</body>
+</html>
+
+```
